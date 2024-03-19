@@ -1,55 +1,69 @@
 from loguru import logger
 from telegram.ext import Updater, CommandHandler, MessageHandler, filters, Filters
 from telegram import ReplyKeyboardMarkup
-
+from transformers import  Conversation
 import torch
-
+from transformers import pipeline
 from config.chromadb_client import collection_result
-from config.ml import sentence_model, tokenizer, device, model
-from utils.ml import qa_template, encodeQuestion, remove_after_question
+from config.ml import sentence_model, chatbot, SYSTEM_PROMPT
+from utils.ml import encodeQuestion
 
-# logging.basicConfig(
-#     format='%(asctime)s - %(name)s - %(levelname)s - %(message)',
-#     level=logging.DEBUG)
 
 Telegram_token = '7189109603:AAFF0hyVp8yH_8Cy-cuQGEaShaVLkN9afOE'
 
 def wake_up(update, context):
     chat = update.effective_chat
     name = update.message.chat.first_name
-    button = ReplyKeyboardMarkup([['Узнать курс валют', 'Спросить о чем-то']], resize_keyboard=True)
+   # button = ReplyKeyboardMarkup([['Узнать курс валют', 'Спросить о чем-то']], resize_keyboard=True)
     context.bot.send_message(chat_id=chat.id,
-                             text='Привет, {}. Этот чат бот ЦБ РФ поможет тебе по всем интересующим тебя вопросам!'.format(
-                                 name),
-                             reply_markup=button)
+                             text='Привет, {}. Этот чат мединского бота, задай мне вопрос!'.format(
+                                 name),)
+                             #reply_markup=button)
 
+def generate_answer(
+    prompt,
+    max_new_tokens: int = 128,
+    temperature=0.5,
+    top_k: int = 50,
+    top_p: float = 0.95,
+    repetition_penalty: float = 2.0,
+    do_sample: bool = True,
+    num_beams: int = 2,
+    early_stopping: bool = True,
+) -> str:
+    # Генерируем ответ от чатбота
+    conversation = chatbot(
+        prompt,
+        max_new_tokens=max_new_tokens,
+        temperature=temperature,
+        top_k=top_k,
+        top_p=top_p,
+        repetition_penalty=repetition_penalty,
+        do_sample=do_sample,
+    )
 
+    # Возвращаем последнее сообщение чатбота как ответ
+    return conversation
 def LLMChat(update, context):
+    conversation = Conversation()
     user_input = update.message.text
     top_answer = encodeQuestion(user_input, sentence_model, collection_result)
     result = []
     for answer in top_answer:
         result.append(answer['answer'])
 
-    if len(top_answer) == 0:
-        qa = qa_template.format(context="", question=user_input)
-    else:
-        qa = qa_template.format(context=result, question=user_input)
-
-    input_ids = torch.tensor([tokenizer.encode(qa, add_special_tokens=True)]).to(device)
-
-    outputs = model.generate(input_ids,
-                             top_p=0.4,
-                             temperature=0.2,
-                             repetition_penalty=2.0,
-                             min_length=20,
-                             max_length=600,
-                             pad_token_id=tokenizer.eos_token_id,
-                             do_sample=True)
-    answer = remove_after_question(tokenizer.decode(outputs[0][1:]))
-
-    response = f'Ваш ответ на вопрос: {user_input} - {answer}'
-    context.bot.send_message(chat_id=update.effective_chat.id, text=response)
+    conversation.add_message({"role": "system", "content": SYSTEM_PROMPT})
+    document_template = f"""
+        CONTEXT:
+        {result}
+        Отвечай только на русском языке.
+        ВОПРОС:{user_input}
+        """
+    conversation.add_message({"role": "user", "content": document_template})
+    prompt = chatbot.tokenizer.apply_chat_template(conversation, tokenize=False, add_generation_prompt=False)
+    output = generate_answer(prompt, temperature=0.5)
+    print(output)
+    context.bot.send_message(chat_id=update.effective_chat.id, text=output)
 
 
 def main():
