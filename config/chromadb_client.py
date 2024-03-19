@@ -50,7 +50,7 @@ def load_documents(file_paths):
     for file_path in file_paths:
         print(file_path)
         file_contents = read_text_from_file(file_path)
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=75)
         chunks = text_splitter.split_text(file_contents)
         documents.extend([{'text': chunk, 'file_path': file_path, 'page_number': i} for i, chunk in enumerate(chunks)])
 
@@ -75,18 +75,18 @@ def get_file_paths(directory):
     return file_paths
 
 def collectionUpsert(df):
-  texts = df["text"].tolist()
-  file_path = df["file_path"].tolist()
-  text_embeddings = df["text_embeddings"].tolist()
-  ids = [str(i) for i in range(1, len(df['text'])+1)]
-  collection.upsert(
+    texts = df["text"].tolist()
+    file_path = df["file_path"].tolist()
+    text_embeddings = df["text_embeddings"].tolist()
+    ids = [str(i) for i in range(1, len(df['text'])+1)]
+    collection.upsert(
       ids=ids,
       embeddings=text_embeddings,
       metadatas=[{"source": "test", "file_path": txt} for txt in file_path],
       documents=texts
-  )
+    )
 
-  return collection
+    return collection
 
 def calculate_embedding(txt, model):
     embedding = model.encode(txt, normalize_embeddings=True)

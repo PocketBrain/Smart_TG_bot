@@ -18,6 +18,6 @@ def encodeQuestion(question, model, collection):
         if distance < 1:
             result_documents.append({"file_path": metadata["file_path"], "answer": document, "metric": distance})
     result_documents.sort(key=lambda x: x["metric"], reverse=False)
-    result_documents = result_documents[:3]
+    result_documents = result_documents[:5]
 
     return result_documents

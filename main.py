@@ -1,7 +1,7 @@
 from loguru import logger
 from telegram.ext import Updater, CommandHandler, MessageHandler, filters, Filters
 from telegram import ReplyKeyboardMarkup
-from transformers import  Conversation
+from transformers import Conversation
 import torch
 from transformers import pipeline
 from config.chromadb_client import collection_result
@@ -23,8 +23,8 @@ def wake_up(update, context):
 def generate_answer(
     prompt,
     conversation: Conversation,
-    max_new_tokens: int = 80,
-    temperature=0.5,
+    max_new_tokens: int = 128,
+    temperature=0.3,
     top_k: int = 50,
     top_p: float = 0.95,
     repetition_penalty: float = 2.0,
@@ -41,6 +41,8 @@ def generate_answer(
         top_p=top_p,
         repetition_penalty=repetition_penalty,
         do_sample=do_sample,
+        num_beams=num_beams,
+        early_stopping=early_stopping,
     )
     print(output)
     # Возвращаем последнее сообщение чатбота как ответ
@@ -58,11 +60,13 @@ def LLMChat(update, context):
         CONTEXT:
         {result}
         Отвечай только на русском языке.
+        Отвечай только на вопросы, которые относятся к прикрепленному документу.
+        Не отвечай, если не понимаешь вопроса.
         ВОПРОС:{user_input}
         """
     conversation.add_message({"role": "user", "content": document_template})
     #prompt = chatbot.tokenizer.apply_chat_template(conversation, tokenize=False, add_generation_prompt=False)
-    output = generate_answer(chatbot, conversation, temperature=0.5)
+    output = generate_answer(chatbot, conversation)
     print(output[-1]["content"])
     context.bot.send_message(chat_id=update.effective_chat.id, text=output[-1]["content"])
 
