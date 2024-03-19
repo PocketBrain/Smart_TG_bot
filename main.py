@@ -22,7 +22,8 @@ def wake_up(update, context):
 
 def generate_answer(
     prompt,
-    max_new_tokens: int = 128,
+    conversation: Conversation,
+    max_new_tokens: int = 80,
     temperature=0.5,
     top_k: int = 50,
     top_p: float = 0.95,
@@ -32,8 +33,8 @@ def generate_answer(
     early_stopping: bool = True,
 ) -> str:
     # Генерируем ответ от чатбота
-    conversation = chatbot(
-        prompt,
+    output = chatbot(
+        conversation,
         max_new_tokens=max_new_tokens,
         temperature=temperature,
         top_k=top_k,
@@ -41,9 +42,9 @@ def generate_answer(
         repetition_penalty=repetition_penalty,
         do_sample=do_sample,
     )
-
+    print(output)
     # Возвращаем последнее сообщение чатбота как ответ
-    return conversation
+    return output
 def LLMChat(update, context):
     conversation = Conversation()
     user_input = update.message.text
@@ -60,10 +61,10 @@ def LLMChat(update, context):
         ВОПРОС:{user_input}
         """
     conversation.add_message({"role": "user", "content": document_template})
-    prompt = chatbot.tokenizer.apply_chat_template(conversation, tokenize=False, add_generation_prompt=False)
-    output = generate_answer(prompt, temperature=0.5)
-    print(output)
-    context.bot.send_message(chat_id=update.effective_chat.id, text=output)
+    #prompt = chatbot.tokenizer.apply_chat_template(conversation, tokenize=False, add_generation_prompt=False)
+    output = generate_answer(chatbot, conversation, temperature=0.5)
+    print(output[-1]["content"])
+    context.bot.send_message(chat_id=update.effective_chat.id, text=output[-1]["content"])
 
 
 def main():
